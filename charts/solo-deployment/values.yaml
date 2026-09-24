@@ -79,8 +79,8 @@ defaults:
   root: # root container
     image:
       registry: "ghcr.io"
-      repository: "hashgraph/solo-containers/debian-s6-java25"
-      tag: "0.46.1"
+      repository: "hiero-ledger/solo-containers/debian-s6-java25"
+      tag: "0.46.2"
       pullPolicy: "IfNotPresent"
     resources: { }
     extraEnv: [ ]
@@ -154,8 +154,8 @@ defaults:
       nameOverride: "backup-uploader"
       image:
         registry: "ghcr.io"
-        repository: "hashgraph/solo-containers/backup-uploader"
-        tag: "0.46.1"
+        repository: "hiero-ledger/solo-containers/backup-uploader"
+        tag: "0.46.2"
         pullPolicy: "IfNotPresent"
       config:
         backupBucket: "backup"

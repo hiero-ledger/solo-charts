@@ -118,19 +118,19 @@
     ],
     [
       "@semantic-release/exec",
-      { "cmd": "helm push solo-cluster-setup-${nextRelease.version}.tgz oci://ghcr.io/hashgraph/solo-charts" }
+      { "cmd": "helm push solo-cluster-setup-${nextRelease.version}.tgz oci://ghcr.io/hiero-ledger/solo-charts" }
     ],
     [
       "@semantic-release/exec",
-      { "cmd": "helm push solo-deployment-${nextRelease.version}.tgz oci://ghcr.io/hashgraph/solo-charts" }
+      { "cmd": "helm push solo-deployment-${nextRelease.version}.tgz oci://ghcr.io/hiero-ledger/solo-charts" }
     ],
     [
       "@semantic-release/exec",
-      { "cmd": "helm push solo-cert-manager-${nextRelease.version}.tgz oci://ghcr.io/hashgraph/solo-charts" }
+      { "cmd": "helm push solo-cert-manager-${nextRelease.version}.tgz oci://ghcr.io/hiero-ledger/solo-charts" }
     ],
     [
       "@semantic-release/exec",
-      { "cmd": "helm push solo-shared-resources-${nextRelease.version}.tgz oci://ghcr.io/hashgraph/solo-charts" }
+      { "cmd": "helm push solo-shared-resources-${nextRelease.version}.tgz oci://ghcr.io/hiero-ledger/solo-charts" }
     ],
     [
       "@semantic-release/github",

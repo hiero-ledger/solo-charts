@@ -15,6 +15,7 @@ cloud:
     enabled: true
   s3:
     enabled: false
+    useSsl: true # set false for an in-cluster, plain-HTTP S3 server
   gcs:
     enabled: false
 

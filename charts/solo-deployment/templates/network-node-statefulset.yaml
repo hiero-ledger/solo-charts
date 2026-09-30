@@ -309,7 +309,7 @@ spec:
                 name: uploader-mirror-secrets
                 key: S3_ENDPOINT # do not use https:// here instead use useSsl=true
           - name: S3_USE_SSL
-            value: "true"
+            value: {{ $.Values.cloud.s3.useSsl | toString | quote }}
           {{- end }}
           {{- if $.Values.cloud.gcs.enabled }}
           - name: GCS_ENABLED
@@ -395,7 +395,7 @@ spec:
                 name: uploader-mirror-secrets
                 key: S3_ENDPOINT # do not use https:// here instead use useSsl=true
           - name: S3_USE_SSL
-            value: "true"
+            value: {{ $.Values.cloud.s3.useSsl | toString | quote }}
           {{- end }}
           {{- if $.Values.cloud.gcs.enabled }}
           - name: GCS_ENABLED
@@ -479,7 +479,7 @@ spec:
                 name: uploader-mirror-secrets
                 key: S3_ENDPOINT # do not use https:// here instead use useSsl=true
           - name: S3_USE_SSL
-            value: "true"
+            value: {{ $.Values.cloud.s3.useSsl | toString | quote }}
           {{- end }}
           {{- if $.Values.cloud.gcs.enabled }}
           - name: GCS_ENABLED
@@ -559,7 +559,7 @@ spec:
                 name: uploader-mirror-secrets
                 key: S3_ENDPOINT # do not use https:// here instead use useSsl=true
           - name: S3_USE_SSL
-            value: "true"
+            value: {{ $.Values.cloud.s3.useSsl | toString | quote }}
           {{- end }}
           {{- if $.Values.cloud.gcs.enabled }}
           - name: GCS_ENABLED

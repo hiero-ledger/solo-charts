@@ -172,6 +172,11 @@
       "channel": "alpha"
     },
     {
+      "name": "feat/*",
+      "prerelease": "alpha",
+      "channel": "alpha"
+    },
+    {
       "name": "beta/*",
       "prerelease": "beta",
       "channel": "beta"

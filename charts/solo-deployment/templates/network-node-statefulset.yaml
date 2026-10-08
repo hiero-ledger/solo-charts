@@ -830,6 +830,15 @@ spec:
 
               chmod 755 -R /opt/hgcapp/services-hedera/HapiApp2.0/data
 
+              {{- if $appJarsInImage }}
+              # the consensus node image runs as uid 2000 (not root), which must be able to write the files
+              # copied above and to replace them later (e.g. kubectl cp of genesis-network.json)
+              chown -R 2000:2000 /opt/hgcapp/services-hedera/HapiApp2.0/data/config
+              {{- if $networkNodeKeySecrets }}
+              chown -R 2000:2000 /opt/hgcapp/services-hedera/HapiApp2.0/data/keys
+              {{- end }}
+              {{- end }}
+
               {{- if $.Values.hedera.configMaps.applicationEnv }}
               # copy in the application.env to supply the environment variables to the application, will need
               # CONSENSUS_NODE_ID set to the unique Node ID with hedera platform v0.59+

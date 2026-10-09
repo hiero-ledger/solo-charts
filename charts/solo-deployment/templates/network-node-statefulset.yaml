@@ -16,6 +16,7 @@
 {{- $nodeStorage := $.Values.defaults.volumeClaims.node }}
 {{- $pvcEnabled := $.Values.defaults.volumeClaims.enabled }}
 {{- $capacityCheck := $.Values.defaults.volumeClaims.capacityCheck }}
+{{- $appJarsInImage := $.Values.defaults.volumeClaims.appJarsInImage }}
 {{/*
 Every claim-backed volume paired with the path root-container mounts it on and the size its claim
 requested. Kept in one place so the capacity check cannot drift from the claim templates above.
@@ -31,10 +32,14 @@ requested. Kept in one place so the capacity check cannot drift from the claim t
   (dict "name" "hgcapp-output"        "path" "/opt/hgcapp/services-hedera/HapiApp2.0/output"            "storage" $nodeStorage.output)
   (dict "name" "hgcapp-data-config"   "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/config"       "storage" $nodeStorage.config)
   (dict "name" "hgcapp-data-keys"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/keys"         "storage" $nodeStorage.keys)
-  (dict "name" "hgcapp-data-libs"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/lib"          "storage" $nodeStorage.dataLibs)
-  (dict "name" "hgcapp-data-apps"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/apps"         "storage" $nodeStorage.dataApps)
   (dict "name" "hgcapp-state"         "path" "/opt/hgcapp/services-hedera/HapiApp2.0/state"             "storage" $nodeStorage.config)
 }}
+{{- if not $appJarsInImage }}
+{{- $claimMounts = concat $claimMounts (list
+  (dict "name" "hgcapp-data-libs"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/lib"          "storage" $nodeStorage.dataLibs)
+  (dict "name" "hgcapp-data-apps"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/apps"         "storage" $nodeStorage.dataApps)
+) }}
+{{- end }}
 {{- $initContainersLength := len $.Values.hedera.initContainers }}
 {{- $cheetah := $.Values.cheetah }}
 {{- $bucketPrefixString := toString $cloud.buckets.streamBucketPrefix }}
@@ -72,8 +77,12 @@ spec:
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-output-pvc" "storage" $nodeStorage.output "storageClassName" $defaults.volumeClaims.storageClassName) | nindent 4 }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-config-pvc" "storage" $nodeStorage.config "storageClassName" $defaults.volumeClaims.storageClassName) | nindent 4 }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-keys-pvc" "storage" $nodeStorage.keys "storageClassName" $defaults.volumeClaims.storageClassName) | nindent 4 }}
+    {{- if not $appJarsInImage }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-libs-pvc" "storage" $nodeStorage.dataLibs "storageClassName" $defaults.volumeClaims.storageClassName) | nindent 4 }}
+    {{- end }}
+    {{- if not $appJarsInImage }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-apps-pvc" "storage" $nodeStorage.dataApps "storageClassName" $defaults.volumeClaims.storageClassName) | nindent 4 }}
+    {{- end }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-state-pvc" "storage" $nodeStorage.config "storageClassName" $defaults.volumeClaims.storageClassName) | nindent 4 }}
   {{- end }}
   template:
@@ -126,8 +135,12 @@ spec:
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-output" "claimName" (printf "%s-%s-%s" "hgcapp-output-pvc-network" $node.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-config" "claimName" (printf "%s-%s-%s" "hgcapp-data-config-pvc-network" $node.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-keys" "claimName" (printf "%s-%s-%s" "hgcapp-data-keys-pvc-network" $node.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
+        {{- if not $appJarsInImage }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-libs" "claimName" (printf "%s-%s-%s" "hgcapp-data-libs-pvc-network" $node.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
+        {{- end }}
+        {{- if not $appJarsInImage }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-apps" "claimName" (printf "%s-%s-%s" "hgcapp-data-apps-pvc-network" $node.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
+        {{- end }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-state" "claimName" (printf "%s-%s-%s" "hgcapp-state-pvc-network" $node.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
         {{- if $grafanaAlloy.enabled }}
         - name: alloy-config-volume
@@ -224,10 +237,12 @@ spec:
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/config
           - name: hgcapp-data-keys
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/keys
+          {{- if not $appJarsInImage }}
           - name: hgcapp-data-libs
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/lib
           - name: hgcapp-data-apps
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/apps
+          {{- end }}
           - name: hgcapp-state
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/state
         env:
@@ -815,6 +830,15 @@ spec:
 
               chmod 755 -R /opt/hgcapp/services-hedera/HapiApp2.0/data
 
+              {{- if $appJarsInImage }}
+              # the consensus node image runs as uid 2000 (not root), which must be able to write the files
+              # copied above and to replace them later (e.g. kubectl cp of genesis-network.json)
+              chown -R 2000:2000 /opt/hgcapp/services-hedera/HapiApp2.0/data/config
+              {{- if $networkNodeKeySecrets }}
+              chown -R 2000:2000 /opt/hgcapp/services-hedera/HapiApp2.0/data/keys
+              {{- end }}
+              {{- end }}
+
               {{- if $.Values.hedera.configMaps.applicationEnv }}
               # copy in the application.env to supply the environment variables to the application, will need
               # CONSENSUS_NODE_ID set to the unique Node ID with hedera platform v0.59+
@@ -848,10 +872,12 @@ spec:
             {{- end }}
             - name: shared-hapiapp
               mountPath: /shared-hapiapp
+            {{- if not $appJarsInImage }}
             - name: hgcapp-data-libs
               mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/lib
             - name: hgcapp-data-apps
               mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/apps
+            {{- end }}
         {{- if $.Values.deployment.init.enableDnsValidation }}
         - name: init-hedera
           image: curlimages/curl:8.9.1

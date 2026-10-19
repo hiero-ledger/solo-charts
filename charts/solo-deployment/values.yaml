@@ -51,6 +51,11 @@ terminationGracePeriodSeconds: 10
 defaults:
   volumeClaims:
     enabled: false
+    # Set to true when the root container image already contains the consensus node jar files
+    # (for example the hiero-consensus-node production image). The data/lib and data/apps volumes
+    # are then not created or mounted, because a mounted volume would hide the jars baked into the image.
+    # That image runs as uid 2000, so the config and keys directories are also made owned by uid 2000.
+    appJarsInImage: false
     storageClassName: ""
     # Refuse to start a consensus node whose claims were satisfied from a filesystem too small to
     # hold them. Provisioners that hand out directories on an existing filesystem (hostPath,
@@ -79,8 +84,8 @@ defaults:
   root: # root container
     image:
       registry: "ghcr.io"
-      repository: "hashgraph/solo-containers/debian-s6-java25"
-      tag: "0.46.1"
+      repository: "hiero-ledger/solo-containers/debian-s6-java25"
+      tag: "0.46.2"
       pullPolicy: "IfNotPresent"
     resources: { }
     extraEnv: [ ]
@@ -154,8 +159,8 @@ defaults:
       nameOverride: "backup-uploader"
       image:
         registry: "ghcr.io"
-        repository: "hashgraph/solo-containers/backup-uploader"
-        tag: "0.46.1"
+        repository: "hiero-ledger/solo-containers/backup-uploader"
+        tag: "0.46.2"
         pullPolicy: "IfNotPresent"
       config:
         backupBucket: "backup"

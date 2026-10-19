@@ -56,11 +56,11 @@ permissions:
 jobs:
   test:
     name: ${{ inputs.custom-job-label || 'Solo E2E Validation' }}
-    runs-on: solo-linux-medium
+    runs-on: hl-solo-chart-lin-md
 
     steps:
       - name: Harden the runner (Audit all outbound calls)
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
           egress-policy: audit
 
@@ -108,7 +108,7 @@ jobs:
 
       - name: Setup Node
         if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4.0.4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v4.0.4
         with:
           node-version: 23
           cache: npm
@@ -118,7 +118,21 @@ jobs:
         if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
         with:
-          version: v3.12.3
+          version: v3.14.2
+
+      - name: Install Kubectl
+        if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
+        uses: step-security/setup-kubectl@b256bc71248a59f1e3a278fc75a65646d6a8a1c4 # v5.1.0
+        with:
+          version: v1.32.2
+
+      - name: Setup Kind
+        if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
+        uses: helm/kind-action@1544676c07bb3570fcb70166beaa07c4528fd4aa # v1.15.1
+        with:
+          install_only: true
+          version: v0.29.0
+          kubectl_version: v1.32.2
 
       - name: Install Solo dependencies
         if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}

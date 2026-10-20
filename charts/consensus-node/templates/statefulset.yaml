@@ -9,6 +9,31 @@
 {{- $cloud := .Values.cloud }}
 {{- $nodeStorage := .Values.volumeClaims.node }}
 {{- $pvcEnabled := .Values.volumeClaims.enabled }}
+{{- $capacityCheck := .Values.volumeClaims.capacityCheck }}
+{{- $appJarsInImage := .Values.volumeClaims.appJarsInImage }}
+{{/*
+Every claim-backed volume paired with the path root-container mounts it on and the size its claim
+requested. Kept in one place so the capacity check cannot drift from the claim templates below.
+*/}}
+{{- $claimMounts := list
+  (dict "name" "hgcapp-blockstream"  "path" "/opt/hgcapp/blockStreams"                                  "storage" $nodeStorage.blockStreams)
+  (dict "name" "hgcapp-event-streams" "path" "/opt/hgcapp/eventsStreams"                                "storage" $nodeStorage.eventStreams)
+  (dict "name" "hgcapp-record-streams" "path" "/opt/hgcapp/recordStreams"                               "storage" $nodeStorage.recordStreams)
+  (dict "name" "hgcapp-data-onboard"  "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/onboard"      "storage" $nodeStorage.dataOnboard)
+  (dict "name" "hgcapp-data-saved"    "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/saved"        "storage" $nodeStorage.dataSaved)
+  (dict "name" "hgcapp-data-stats"    "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/stats"        "storage" $nodeStorage.dataStats)
+  (dict "name" "hgcapp-data-upgrade"  "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/upgrade"      "storage" $nodeStorage.dataUpgrade)
+  (dict "name" "hgcapp-output"        "path" "/opt/hgcapp/services-hedera/HapiApp2.0/output"            "storage" $nodeStorage.output)
+  (dict "name" "hgcapp-data-config"   "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/config"       "storage" $nodeStorage.config)
+  (dict "name" "hgcapp-data-keys"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/keys"         "storage" $nodeStorage.keys)
+  (dict "name" "hgcapp-state"         "path" "/opt/hgcapp/services-hedera/HapiApp2.0/state"             "storage" $nodeStorage.config)
+}}
+{{- if not $appJarsInImage }}
+{{- $claimMounts = concat $claimMounts (list
+  (dict "name" "hgcapp-data-libs"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/lib"          "storage" $nodeStorage.dataLibs)
+  (dict "name" "hgcapp-data-apps"     "path" "/opt/hgcapp/services-hedera/HapiApp2.0/data/apps"         "storage" $nodeStorage.dataApps)
+) }}
+{{- end }}
 {{- $initContainersLength := len .Values.initContainers }}
 {{- $cheetah := .Values.cheetah }}
 {{- $bucketPrefixString := toString $cloud.buckets.streamBucketPrefix }}
@@ -46,8 +71,12 @@ spec:
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-output-pvc" "storage" $nodeStorage.output "storageClassName" .Values.volumeClaims.storageClassName) | nindent 4 }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-config-pvc" "storage" $nodeStorage.config "storageClassName" .Values.volumeClaims.storageClassName) | nindent 4 }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-keys-pvc" "storage" $nodeStorage.keys "storageClassName" .Values.volumeClaims.storageClassName) | nindent 4 }}
+    {{- if not $appJarsInImage }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-libs-pvc" "storage" $nodeStorage.dataLibs "storageClassName" .Values.volumeClaims.storageClassName) | nindent 4 }}
+    {{- end }}
+    {{- if not $appJarsInImage }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-data-apps-pvc" "storage" $nodeStorage.dataApps "storageClassName" .Values.volumeClaims.storageClassName) | nindent 4 }}
+    {{- end }}
     {{ include "solo.volumeClaimTemplate" (dict "name" "hgcapp-state-pvc" "storage" $nodeStorage.config "storageClassName" .Values.volumeClaims.storageClassName) | nindent 4 }}
   {{- end }}
   template:
@@ -101,8 +130,12 @@ spec:
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-output" "claimName" (printf "%s-%s-%s" "hgcapp-output-pvc-network" .Values.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-config" "claimName" (printf "%s-%s-%s" "hgcapp-data-config-pvc-network" .Values.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-keys" "claimName" (printf "%s-%s-%s" "hgcapp-data-keys-pvc-network" .Values.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
+        {{- if not $appJarsInImage }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-libs" "claimName" (printf "%s-%s-%s" "hgcapp-data-libs-pvc-network" .Values.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
+        {{- end }}
+        {{- if not $appJarsInImage }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-data-apps" "claimName" (printf "%s-%s-%s" "hgcapp-data-apps-pvc-network" .Values.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
+        {{- end }}
         {{ include "solo.volumeTemplate" (dict "name" "hgcapp-state" "claimName" (printf "%s-%s-%s" "hgcapp-state-pvc-network" .Values.name "0") "pvcEnabled" $pvcEnabled ) | nindent 8 }}
         {{- if $grafanaAlloy.enabled }}
         - name: alloy-config-volume
@@ -199,10 +232,12 @@ spec:
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/config
           - name: hgcapp-data-keys
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/keys
+          {{- if not $appJarsInImage }}
           - name: hgcapp-data-libs
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/lib
           - name: hgcapp-data-apps
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/apps
+          {{- end }}
           - name: hgcapp-state
             mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/state
         env:
@@ -663,6 +698,63 @@ spec:
       {{- end }}
 
       initContainers:
+        {{- if and $pvcEnabled $capacityCheck.enabled }}
+        # Fail before the consensus node starts if a claim was satisfied from a filesystem too small
+        # to hold it. The claim itself cannot reveal this: a provisioner that hands out directories
+        # on an existing filesystem binds the claim, reports the requested size back, and mounts it
+        # successfully whatever the size of the underlying disk. Comparing the mounted filesystem
+        # against the requested size is the only way to see it, and doing so here means the node
+        # never writes state to the wrong device.
+        - name: init-verify-volume-capacity
+          image: busybox:1.36.1
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              tolerance_percent={{ $capacityCheck.tolerancePercent }}
+              failures=0
+
+              check_capacity() {
+                mount_path="$1"
+                requested_kib="$2"
+                available_kib="$(df -Pk "$mount_path" 2>/dev/null | tail -n 1 | tr -s ' ' | cut -d ' ' -f 2)"
+
+                # `df` prints only its header for a path it cannot stat, which would leave a
+                # non-numeric value here and make the comparison below fall through to a pass.
+                case "$available_kib" in
+                  '' | *[!0-9]*)
+                    echo "SKIP $mount_path: filesystem size unavailable"
+                    return
+                    ;;
+                esac
+
+                minimum_kib=$(( requested_kib * tolerance_percent / 100 ))
+                if [ "$available_kib" -lt "$minimum_kib" ]; then
+                  echo "FAIL $mount_path: backed by ${available_kib}KiB, claim requested ${requested_kib}KiB"
+                  failures=$(( failures + 1 ))
+                else
+                  echo "OK   $mount_path: backed by ${available_kib}KiB, claim requested ${requested_kib}KiB"
+                fi
+              }
+
+              {{- range $claimMount := $claimMounts }}
+              check_capacity {{ $claimMount.path | quote }} {{ include "solo.quantityToKibibytes" $claimMount.storage }}
+              {{- end }}
+
+              if [ "$failures" -ne 0 ]; then
+                echo ""
+                echo "$failures volume(s) are backed by less storage than their PersistentVolumeClaim requested."
+                echo "The provisioner satisfied these claims from a filesystem too small to hold them, which"
+                echo "usually means the storage class writes into a directory that is not on the intended"
+                echo "device. Check the provisioner's host path with: findmnt <path>; lsblk; df -h <path>"
+                exit 1
+              fi
+          volumeMounts:
+            {{- range $claimMount := $claimMounts }}
+            - name: {{ $claimMount.name }}
+              mountPath: {{ $claimMount.path }}
+            {{- end }}
+        {{- end }}
+
         {{- if $backupUploader.enabled }}
         # create empty VERSION file before any volume mounted
         # otherwise VERSION will be mounted as directory by backup-uploader
@@ -733,6 +825,15 @@ spec:
 
               chmod 755 -R /opt/hgcapp/services-hedera/HapiApp2.0/data
 
+              {{- if $appJarsInImage }}
+              # the consensus node image runs as uid 2000 (not root), which must be able to write the files
+              # copied above and to replace them later (e.g. kubectl cp of genesis-network.json)
+              chown -R 2000:2000 /opt/hgcapp/services-hedera/HapiApp2.0/data/config
+              {{- if $networkNodeKeySecrets }}
+              chown -R 2000:2000 /opt/hgcapp/services-hedera/HapiApp2.0/data/keys
+              {{- end }}
+              {{- end }}
+
               {{- if .Values.configMaps.applicationEnv }}
               # copy in the application.env to supply the environment variables to the application, will need
               # CONSENSUS_NODE_ID set to the unique Node ID with hedera platform v0.59+
@@ -766,10 +867,12 @@ spec:
             {{- end }}
             - name: shared-hapiapp
               mountPath: /shared-hapiapp
+            {{- if not $appJarsInImage }}
             - name: hgcapp-data-libs
               mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/lib
             - name: hgcapp-data-apps
               mountPath: /opt/hgcapp/services-hedera/HapiApp2.0/data/apps
+            {{- end }}
         {{- if .Values.deployment.init.enableDnsValidation }}
         - name: init-hedera
           image: curlimages/curl:8.9.1

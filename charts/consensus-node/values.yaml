@@ -63,6 +63,21 @@ cloud:
 volumeClaims:
   enabled: false
   storageClassName: ""
+  # Set to true when the root container image already contains the consensus node jar files
+  # (for example the hiero-consensus-node production image). The data/lib and data/apps volumes
+  # are then not created or mounted, because a mounted volume would hide the jars baked into the image.
+  # That image runs as uid 2000, so the config and keys directories are also made owned by uid 2000.
+  appJarsInImage: false
+  # Refuse to start a consensus node whose claims were satisfied from a filesystem too small to
+  # hold them. Provisioners that hand out directories on an existing filesystem (hostPath,
+  # local-path) ignore the requested size, so a claim binds and mounts against any disk and
+  # Kubernetes reports nothing wrong. Disabled by default because a development or single-disk
+  # cluster is legitimately oversubscribed by the sizes below.
+  capacityCheck:
+    enabled: false
+    # Percentage of the requested size a mount must provide. Filesystem metadata overhead means a
+    # correctly provisioned volume reports slightly less than requested.
+    tolerancePercent: 90
   node:
     eventStreams: "100Gi"
     recordStreams: "100Gi"
@@ -81,8 +96,8 @@ volumeClaims:
 root: # root container
   image:
     registry: "ghcr.io"
-    repository: "hashgraph/solo-containers/debian-s6-java25"
-    tag: "0.46.1"
+    repository: "hiero-ledger/solo-containers/debian-s6-java25"
+    tag: "0.46.2"
     pullPolicy: "IfNotPresent"
   resources: {}
   extraEnv: []
@@ -160,8 +175,8 @@ sidecars:
     nameOverride: "backup-uploader"
     image:
       registry: "ghcr.io"
-      repository: "hashgraph/solo-containers/backup-uploader"
-      tag: "0.46.1"
+      repository: "hiero-ledger/solo-containers/backup-uploader"
+      tag: "0.46.2"
       pullPolicy: "IfNotPresent"
     config:
       backupBucket: "backup"

@@ -45,6 +45,35 @@ export MINIO_ROOT_USER={{ include "minio.accessKey" . }}
 export MINIO_ROOT_PASSWORD={{ include "minio.secretKey" . }}
 {{- end -}}
 
+{{/*
+Normalises a Kubernetes quantity ("100Gi", "500M", "1024") to whole kibibytes, so a claim's
+requested size can be compared against what `df -Pk` reports for the filesystem backing it.
+*/}}
+{{- define "solo.quantityToKibibytes" -}}
+{{- $quantity := toString . -}}
+{{- $number := regexFind "^[0-9]+(\\.[0-9]+)?" $quantity | float64 -}}
+{{- $suffix := regexFind "[A-Za-z]+$" $quantity -}}
+{{- if eq $suffix "Ki" -}}
+{{- printf "%.0f" $number -}}
+{{- else if eq $suffix "Mi" -}}
+{{- printf "%.0f" (mulf $number 1024) -}}
+{{- else if eq $suffix "Gi" -}}
+{{- printf "%.0f" (mulf $number 1048576) -}}
+{{- else if eq $suffix "Ti" -}}
+{{- printf "%.0f" (mulf $number 1073741824) -}}
+{{- else if eq $suffix "k" -}}
+{{- printf "%.0f" (divf (mulf $number 1000) 1024) -}}
+{{- else if eq $suffix "M" -}}
+{{- printf "%.0f" (divf (mulf $number 1000000) 1024) -}}
+{{- else if eq $suffix "G" -}}
+{{- printf "%.0f" (divf (mulf $number 1000000000) 1024) -}}
+{{- else if eq $suffix "T" -}}
+{{- printf "%.0f" (divf (mulf $number 1000000000000) 1024) -}}
+{{- else -}}
+{{- printf "%.0f" (divf $number 1024) -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "solo.volumeClaimTemplate" -}}
 - metadata:
     name: {{ .name }}

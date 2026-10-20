@@ -33,6 +33,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # semantic-release stamps one version across every chart, and Solo installs the shared and
+  # per-node charts at the same version. A chart left behind makes that install request a version
+  # that was never published, which only shows up once someone deploys from the registry rather
+  # than from a local `--chart-dir`.
+  chart-versions-in-lockstep:
+    name: Chart Versions In Lockstep
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout solo-charts PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Compare every Chart.yaml version
+        run: |
+          mismatched=0
+          expected=""
+          for chart in charts/*/Chart.yaml; do
+            version="$(grep -E '^version:' "${chart}" | awk '{print $2}')"
+            app_version="$(grep -E '^appVersion:' "${chart}" | awk '{print $2}' | tr -d '"')"
+            echo "${chart}: version=${version} appVersion=${app_version}"
+            if [[ -z "${expected}" ]]; then
+              expected="${version}"
+            elif [[ "${version}" != "${expected}" ]]; then
+              echo "::error file=${chart}::version ${version} does not match ${expected}"
+              mismatched=1
+            fi
+            if [[ "${app_version}" != "${version}" ]]; then
+              echo "::error file=${chart}::appVersion ${app_version} does not match version ${version}"
+              mismatched=1
+            fi
+          done
+          exit "${mismatched}"
+
   solo-e2e-validation:
     name: Solo E2E Validation
     uses: ./.github/workflows/solo-e2e-validation.yaml

@@ -40,10 +40,6 @@ runAsGroup: 0
 {{ $reg }}/{{ $repo }}:{{ $tag }}
 {{- end }}
 
-{{- define "minio.configEnv" -}}
-export MINIO_ROOT_USER={{ include "minio.accessKey" . }}
-export MINIO_ROOT_PASSWORD={{ include "minio.secretKey" . }}
-{{- end -}}
 
 {{/*
 Normalises a Kubernetes quantity ("100Gi", "500M", "1024") to whole kibibytes, so a claim's

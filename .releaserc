@@ -36,6 +36,12 @@
         "chartPath": "./charts/solo-shared-resources"
       }
     ],
+    [
+      "semantic-release-helm3",
+      {
+        "chartPath": "./charts/consensus-node"
+      }
+    ],
     "@semantic-release/git",
     "@semantic-release/github"
   ],
@@ -71,13 +77,20 @@
       }
     ],
     [
+      "semantic-release-helm3",
+      {
+        "chartPath": "./charts/consensus-node"
+      }
+    ],
+    [
       "@semantic-release/git",
       {
         "assets": [
           "charts/solo-deployment/Chart.yaml",
           "charts/solo-cluster-setup/Chart.yaml",
           "charts/solo-cert-manager/Chart.yaml",
-          "charts/solo-shared-resources/Chart.yaml"
+          "charts/solo-shared-resources/Chart.yaml",
+          "charts/consensus-node/Chart.yaml"
         ],
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\nSigned-off-by: Hedera Automation <hedera-eng-automation@swirldslabs.com>"
       }
@@ -102,6 +115,10 @@
     ],
     [
       "@semantic-release/exec",
+      { "cmd": "helm dependency update charts/consensus-node" }
+    ],
+    [
+      "@semantic-release/exec",
       { "cmd": "helm package charts/solo-cluster-setup" }
     ],
     [
@@ -115,6 +132,10 @@
     [
       "@semantic-release/exec",
       { "cmd": "helm package charts/solo-shared-resources" }
+    ],
+    [
+      "@semantic-release/exec",
+      { "cmd": "helm package charts/consensus-node" }
     ],
     [
       "@semantic-release/exec",
@@ -133,6 +154,10 @@
       { "cmd": "helm push solo-shared-resources-${nextRelease.version}.tgz oci://ghcr.io/hiero-ledger/solo-charts" }
     ],
     [
+      "@semantic-release/exec",
+      { "cmd": "helm push consensus-node-${nextRelease.version}.tgz oci://ghcr.io/hiero-ledger/solo-charts" }
+    ],
+    [
       "@semantic-release/github",
       {
         "assets": [
@@ -147,6 +172,9 @@
           },
           {
             "path": "solo-shared-resources-*.tgz"
+          },
+          {
+            "path": "consensus-node-*.tgz"
           }
         ]
       }

@@ -27,7 +27,10 @@ on:
         description: "Solo ref to validate against (tag, branch, or commit SHA)"
         type: string
         required: false
-        default: ""
+        # TODO(5172): revert to "" (main) once the Solo side is merged. Until then the chart-layout
+        # suite and the chart parity test only exist on this branch, so validating against main
+        # would silently skip both and leave the consensus-node chart untested.
+        default: "5172-migrate-from-the-solo-chartssolo-deployment-helm-chart-to-a-new-chart-that-represents-a-single-consensus-node-solo-chartsconsensus-node"
   workflow_call:
     inputs:
       custom-job-label:
@@ -39,7 +42,10 @@ on:
         description: "Solo ref to validate against (tag, branch, or commit SHA)"
         type: string
         required: false
-        default: ""
+        # TODO(5172): revert to "" (main) once the Solo side is merged. Until then the chart-layout
+        # suite and the chart parity test only exist on this branch, so validating against main
+        # would silently skip both and leave the consensus-node chart untested.
+        default: "5172-migrate-from-the-solo-chartssolo-deployment-helm-chart-to-a-new-chart-that-represents-a-single-consensus-node-solo-chartsconsensus-node"
 
 defaults:
   run:
@@ -134,16 +140,43 @@ jobs:
           version: v0.29.0
           kubectl_version: v1.32.2
 
+      # A fresh checkout has no charts/*/charts directory, and `--chart-dir` makes Helm render the
+      # chart straight from the working tree rather than from a packaged release, so the subchart
+      # dependencies have to be resolved here. The release pipeline does the same before packaging.
+      - name: Resolve chart dependencies
+        if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
+        run: |
+          for chart in charts/*/; do
+            if grep -q '^dependencies:' "${chart}Chart.yaml"; then
+              helm dependency update "${chart}"
+            fi
+          done
+
       - name: Install Solo dependencies
         if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
         working-directory: solo
         run: npm ci
 
+      # Pure `helm template` comparison, no cluster: catches a consensus-node chart that has drifted
+      # from the umbrella chart's per-node templates before anything is deployed. Skips itself on a
+      # Solo ref that predates the test.
+      - name: Check consensus-node chart parity against the umbrella chart
+        if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
+        working-directory: solo
+        env:
+          SOLO_CHARTS_DIR: ${{ github.workspace }}/charts
+        run: |
+          if [[ ! -f test/e2e/integration/core/consensus-node-chart-parity.test.ts ]]; then
+            echo "::notice::Solo ref '${{ inputs.solo-ref || 'main' }}' has no chart parity test; skipping"
+            exit 0
+          fi
+          npx mocha 'test/e2e/integration/core/consensus-node-chart-parity.test.ts'
+
       - name: Run Solo test setup against this solo-charts checkout
         if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
         working-directory: solo
         env:
-          SOLO_CHARTS_DIR: ${{ github.workspace }}
+          SOLO_CHARTS_DIR: ${{ github.workspace }}/charts
         shell: bash
         run: |
           task test-setup
@@ -157,7 +190,23 @@ jobs:
         if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
         working-directory: solo
         env:
-          SOLO_CHARTS_DIR: ${{ github.workspace }}
+          SOLO_CHARTS_DIR: ${{ github.workspace }}/charts
           SOLO_ONE_SHOT_MINIMAL_SETUP: "true"
         run: |
           task test-e2e-one-shot-single-minimal
+
+      # Unlike the one-shot suite above, this one passes `--chart-dir`, so it is the step that
+      # actually exercises the charts in this checkout. It lives in Solo, so it only exists on a
+      # Solo ref that carries it; `solo-ref` selects that branch until the Solo side is merged.
+      - name: Run consensus chart layout E2E against this solo-charts checkout
+        id: consensus-chart-layout
+        if: ${{ steps.check-changed-files.outputs.run-tests == 'true' && !failure() && !cancelled() }}
+        working-directory: solo
+        env:
+          SOLO_CHARTS_DIR: ${{ github.workspace }}/charts
+        run: |
+          if ! task --list-all | grep -q 'test-e2e-consensus-chart-layout'; then
+            echo "::notice::Solo ref '${{ inputs.solo-ref || 'main' }}' has no test-e2e-consensus-chart-layout task; skipping"
+            exit 0
+          fi
+          task test-e2e-consensus-chart-layout

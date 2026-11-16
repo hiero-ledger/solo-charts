@@ -10,7 +10,7 @@
     maxProcessors: "{{ .cheetah.maxProcessors }}"
     fileMatcherConfigs:
       - matcherType: basic
-        patterns: [ ".blk.gz"]
+        patterns: [ ".blk.gz", ".blk.zstd" ] # .blk.zstd: HIP-1193 block files; .blk.gz: older consensus node releases
     flushDelay: 150ms
     markerCheckConfig:
       checkInterval: 150ms
